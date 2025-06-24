@@ -1,6 +1,12 @@
 import time
 
 import pytest
+from selenium.common.exceptions import (
+    TimeoutException,
+    NoSuchElementException,
+    WebDriverException,
+    ElementNotInteractableException
+)
 from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.webdriver.remote.webdriver import WebDriver
 
@@ -38,13 +44,22 @@ class TestLogin:
         if title == exp_title:
             pass
         else:
-            utils.get_screenshot("login_error")
+            utils.get_screenshot("wrong_site")
             print("invalid title")
         assert "Creditswitch" in exp_title
         self.driver.find_element(By.XPATH, readconfig("login_page", "userbox")).send_keys(admn_user)
         self.driver.find_element(By.XPATH, readconfig("login_page", "passbox")).send_keys(admn_pass)
         time.sleep(3)  # delay to manually check recaptcha
-        self.driver.find_element(By.XPATH, readconfig("login_page", "login")).click()
+        try:
+            self.driver.find_element(By.XPATH, readconfig("login_page", "login")).click()
+        except NoSuchElementException as e:
+            print(f"Test failed: Element not found - {e}")
+            utils.get_screenshot("login_error_No_element")
+        except Exception as e:  # Catch any other unexpected errors
+            print(f"An unexpected error occurred: {e}")
+            utils.get_screenshot("login_error_exception")
+        finally:
+            driver.quit()
         # dashboard_page - side_bar, change_password_menu, service_setting, side_bar2 , logout settings_label
         self.driver.find_element(By.XPATH, readconfig("dashboard_page", "service_setting")).click()
         service_setting_header = self.driver.find_element(By.XPATH, readconfig("dashboard_page", "settings_label")).text
