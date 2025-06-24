@@ -40,6 +40,7 @@ def setup(request):
     ops.add_argument("--ignore-certificate-errors")
     ops.add_argument("--start-maximized")
     ops.add_argument("--disable-notification")
+    # ops.add_argument("--incognito")  # to open in incognito mode
     ops.add_experimental_option("prefs", preferences)
     driver = webdriver.Chrome(options=ops)  # driver = webdriver.Chrome(service=serv_obj, options=ops)
     driver.implicitly_wait(10)

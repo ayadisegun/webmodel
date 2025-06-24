@@ -1,7 +1,12 @@
 import datetime
 import os
 from datetime import datetime
-
+from selenium.common.exceptions import (
+    TimeoutException,
+    NoSuchElementException,
+    WebDriverException,
+    ElementNotInteractableException
+)
 import openpyxl
 import pytest
 from selenium.webdriver.support.select import Select
@@ -10,6 +15,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 import time
+from test_file import conftest
 from selenium.webdriver.remote.webdriver import WebDriver
 
 
@@ -17,11 +23,11 @@ class BaseUtils:
     def __init__(self, driver):
         self.driver = driver
 
-    def screenshot_as_file(self, filename: str):
+    def get_screenshot(self, filename: str):
+        screenshot_dir = conftest.readconfig("setup", "screenshot_dir")
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filepath = f"{filename}_{timestamp}.png"
-        self.driver.get_screenshot_as_file(filepath)
-
+        path = os.path.join(screenshot_dir, f"{filename}_{timestamp}.png")
+        self.driver.get_screenshot_as_file(path)
 
     def scroll_to_element(self, element):
         """Scroll to a specific element"""
@@ -61,10 +67,6 @@ class BaseUtils:
         mywait = WebDriverWait(self.driver, 10)
         mywait.until(EC.presence_of_element_located(locator))
 
-    def take_screenshot(self, name):
-        """Take screenshot"""
-        self.driver.save_screenshot(f"screenshots/{name}.png")
-
     def hover_over_element(self, element):
         """Hover over an element"""
         ActionChains(self.driver).move_to_element(element).perform()
@@ -77,6 +79,17 @@ class BaseUtils:
     def mouse_over(self, element):
         ele = self.driver.find_element(element)
         ActionChains(self.driver).move_to_element(ele).perform()
+
+    def delete_cookie(self):
+        self.driver.delete_all_cookies()
+
+    def delete_session(self):
+        self.driver.execute_script("window.sessionStorage.clear();")
+
+    def delete_localstorage(self):
+        self.driver.execute_script("window.localStorage.clear();")
+
+
 
 
 
