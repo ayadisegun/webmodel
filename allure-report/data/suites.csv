@@ -1,0 +1,2 @@
+"DESCRIPTION","DURATION IN MS","NAME","PARENT SUITE","START TIME","STATUS","STOP TIME","SUB SUITE","SUITE","TEST CLASS","TEST METHOD"
+"","95083","test_login_admin[17000-Cswtest1.-yadi-Yadi1.com-yadi-yadinew1-yadi1new-Csw Test-ELECTRICITY-IkejaPrepaid - E01E-SHAGO]","test_file","Sat Jun 28 23:14:00 WAT 2025","passed","Sat Jun 28 23:15:36 WAT 2025","TestLogin1","test_plain_script","",""

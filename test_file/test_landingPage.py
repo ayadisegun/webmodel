@@ -2,7 +2,7 @@ import pytest
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.select import Select
 
-from POM.homePage import Homepage
+from POM.login_page import Homepage
 from Utilities.baseClass import Baseclass, HomepageData
 
 

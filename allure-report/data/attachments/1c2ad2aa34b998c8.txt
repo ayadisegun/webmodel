@@ -1,0 +1,5 @@
+Running tests on browser: chrome
+category list length is:  16
+service list length is:  23
+provider list length is:  7
+Quitting chrome browser.

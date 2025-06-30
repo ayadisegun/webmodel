@@ -1,5 +1,7 @@
+import configparser
 import inspect
 import logging
+import os
 import time
 import requests
 from selenium import webdriver
@@ -21,58 +23,95 @@ from email.mime.base import MIMEBase
 from email import encoders
 import openpyxl
 
-# from Utilities.baseClass import setup
+
+conftest_dir = os.path.dirname(os.path.abspath(__file__))
+config_filepath = os.path.join(conftest_dir, 'config.ini')
+config = configparser.ConfigParser()
+if not os.path.exists(config_filepath):  # Good practice to check if file exists
+    raise FileNotFoundError(f"Configuration file 'config.ini' not found at: {config_filepath}")
+try:
+    config.read(config_filepath)
+    print(f"DEBUG: Config loaded from: {config_filepath}")
+    print(f"DEBUG: Sections: {config.sections()}")
+except Exception as e:
+    raise RuntimeError(f"Error reading config file {config_filepath}: {e}")
 
 
-# def pytest_addoption(parser):
-#     parser.addoption(
-#         "--browser_name", action="store", default="chrome"
-#     )
+def readconfig(section, key):
+    try:
+        return config.get(section, key)
+    except configparser.NoSectionError:
+        # Provide helpful error message if section is missing
+        raise configparser.NoSectionError(f"No section '{section}' found in config file: {config_filepath}. Available sections: {config.sections()}")
+    except configparser.NoOptionError:
+        # Provide helpful error message if key is missing
+        raise configparser.NoOptionError(f"No option '{key}' found in section '{section}' in config file: {config_filepath}")
+# def readconfig(section, key):
+#     config_filepath = os.path.join(conftest_dir, 'config.ini')
+#     config = ConfigParser()
+#     config.read(config_filepath)
+#     return config.get(section, key)
+
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--browser_name", action="store", default="chrome", help="Specify browser: chrome, firefox, or edge"
+    )
 
 
 @pytest.fixture(scope="class")
 def setup(request):
-    preferences = {"download.default_directory": (readconfig("setup", "download_directory"))}  # --> create a variable for the current working
-    # directory dowload location, Note --> preferences={"download.default_directory": "C:\user/segun/downloads"}
-    # will download the file in any hardcoded path defined.
-    ops = webdriver.ChromeOptions()  # ops = webdriver.EdgeOptions()
-    # ops.add_argument("headless") # to run driver in headless mode
-    ops.add_argument("--ignore-certificate-errors")
-    ops.add_argument("--start-maximized")
-    ops.add_argument("--disable-notification")
-    # ops.add_argument("--incognito")  # to open in incognito mode
-    ops.add_experimental_option("prefs", preferences)
-    driver = webdriver.Chrome(options=ops)  # driver = webdriver.Chrome(service=serv_obj, options=ops)
+    driver = None  #
+    browser_name = request.config.getoption("browser_name")
+    print(f"Running tests on browser: {browser_name}")
+    preferences = {"download.default_directory": readconfig("setup", "download_directory")}
+    # # preferences = {"download.default_directory": (readconfig("setup", "download_directory"))}
+    # ops = webdriver.ChromeOptions()
+    # ops.add_argument("--ignore-certificate-errors")
+    # ops.add_argument("--start-maximized")
+    # ops.add_argument("--disable-notification")
+    # # ops.add_argument("--incognito")  # to open in incognito mode
+    # # ops.add_argument("headless")
+    # ops.add_experimental_option("prefs", preferences)
+    # driver = webdriver.Chrome(options=ops)
+
+    # --------------
+    browser_name = request.config.getoption("browser_name")
+    if browser_name == "chrome":
+        ops = webdriver.ChromeOptions()
+        ops.add_argument("--ignore-certificate-errors")
+        ops.add_argument("--start-maximized")
+        ops.add_argument("--disable-notifications")
+        ops.add_experimental_option("prefs", preferences)
+        # ops.add_argument("headless") # to run driver in headless mode
+        driver = webdriver.Chrome(options=ops)
+    elif browser_name == "edge":
+        ops = webdriver.EdgeOptions()
+        ops.add_argument("--ignore-certificate-errors")
+        # ops.add_argument("headless") # to run driver in headless mode
+        ops.add_argument("--start-maximized")
+        ops.add_argument("--disable-notifications")
+        ops.add_experimental_option("prefs", preferences)
+        driver = webdriver.Edge(options=ops)
+    elif browser_name == "firefox":
+        ops = webdriver.FirefoxOptions()
+        ops.add_argument(
+            "--ignore-certificate-errors")
+        ops.add_argument("--start-maximized")
+        ops.add_argument("--disable-notifications")
+        ops.set_preference("browser.download.dir", readconfig("setup", "download_directory"))
+        ops.set_preference("browser.download.folderList", 2)  # 0=desktop, 1=downloads, 2=custom location
+        ops.set_preference("browser.download.useDownloadDir", True)
+        ops.set_preference("browser.helperApps.neverAsk.saveToDisk",
+                           "application/octet-stream")  # Common types to auto-download
+        driver = webdriver.Firefox(options=ops)
+    else:
+        raise ValueError(f"Unsupported browser: {browser_name}. Please choose 'chrome', 'firefox', or 'edge'.")
     driver.implicitly_wait(10)
-    # browser_name = request.config.getoption("browser_name")
-    # if browser_name == "chrome":
-    #     preferences = {"download.default_directory": "location"}  # --> create a variable for the current working
-    #     # directory dowload location, Note --> preferences={"download.default_directory": "C:\user/segun/downloads"}
-    #     # will download the file in any hardcoded path defined.
-    #     ops = webdriver.ChromeOptions()  # ops = webdriver.EdgeOptions()
-    #     # ops.add_argument("headless") # to run driver in headless mode
-    #     ops.add_argument("--ignore-certificate-errors")
-    #     # ops.add_argument("--start-maximized")
-    #     ops.add_argument("--disable-notification")
-    #     ops.add_experimental_option("prefs", preferences)
-    #     # driver = webdriver.Chrome(service=serv_obj, options=ops)
-    #     driver = webdriver.Chrome(options=ops)
-    # elif browser_name == "edge":
-    #     preferences = {"download.default_directory": "location"}  # --> create a variable for the current working
-    #     # directory dowload location, Note --> preferences={"download.default_directory": "C:\user/segun/downloads"}
-    #     # will download the file in any hardcoded path defined.
-    #     ops = webdriver.EdgeOptions()  # ops = webdriver.ChromeOptions()
-    #     # ops.add_argument("headless") # to run driver in headless mode
-    #     ops.add_argument("--ignore-certificate-errors")
-    #     ops.add_argument("--start-maximized")
-    #     ops.add_argument("--disable-notification")
-    #     ops.add_experimental_option("prefs", preferences)
-    #     driver = webdriver.Edge(options=ops)  # webdriver.Chrome(options=ops)
-    # driver.get("http://176.58.99.160:2025/admn93i")
     driver.get(readconfig("setup", "url"))
     request.cls.driver = driver
-
     yield driver
+    print(f"Quitting {browser_name} browser.")
     driver.close()
     driver.quit()
 
@@ -86,7 +125,6 @@ class Utils:
         optns = Select(self.locator)
         optns.select_by_visible_text(text)
 
-    # @staticmethod
     class loggersclass:
         def get_logger(self):
             loggerName = inspect.stack()[1][3]  # this script helps to ensure that the testcase name is printed in the log
@@ -107,18 +145,11 @@ class Utils:
             return logger
 
 
-def readconfig(section, key):
-    # script for reading data from config.ini for test data
-    config = ConfigParser()
-    config.read("config.ini")
-    return config.get(section, key)
-
-
 def send_mail(sender_address, sender_pass, receiver_address, subject, mail_content, attach_file_name,
               ):
     # sender_pass = 'Selenium@234'
 
-    # setup the MIME
+    # setting up the MIME
     message = MIMEMultipart()
     message['From'] = sender_address
     message['To'] = receiver_address
@@ -144,7 +175,6 @@ def send_mail(sender_address, sender_pass, receiver_address, subject, mail_conte
     print('Mail Sent')
 
 
-# @pytest.fixture(scope="session")
 def read_data():
     file_path = readconfig("data", "file")
     sheet_name = readconfig("data", "sheet_name")
@@ -172,35 +202,20 @@ def read_data():
     return data_rows
 
 
-def get_Excel_data_path_in_script():
-        # return [
-        #
-        #     ["segun", "Ayadi", "Rapture", "segema@gmail", "Testing1", "techsupport@creditswitch.com", "Testing2."],
-        #     ["taye", "taiwo", "tailoo", "taiwo@gmail", "Testing4", "ayadisegun02@gmail.com", "Credit2."],
-        #
-        # ]
-        excelfile = "C:\\Users\\Segun\\PycharmProjects\\Android931\\testScripts\\ExcelFile.xlsx"
-        sheetName = "details"
-        workbook = openpyxl.load_workbook(excelfile)
-        sheet = workbook[sheetName]
-        totalrows = sheet.max_row
-        totalcols = sheet.max_column
-        mainList = []
-
-        for i in range(2, totalrows + 1):
-            dataList = []
-            for j in range(1, totalcols + 1):
-                data = sheet.cell(row=i, column=j).value
-                dataList.insert(j, data)
-            mainList.insert(i, dataList)
-        return mainList
-
-
 def set_data(file_path, sheet_name, rowNum, colNum, data):
         workbook = openpyxl.load_workbook(file_path)
         sheet = workbook[sheet_name]
         sheet.cell(row=rowNum, column=colNum).value = data
         workbook.save(file_path)
+
+
+@pytest.mark.hookwrapper
+@pytest.hookimpl(hookwrapper=True, tryfirst=True)
+def pytest_runtest_makereport(item, call):
+    outcome = yield
+    rep = outcome.get_result()
+    setattr(item, "rep_" + rep.when, rep)
+    return rep
 
 # @pytest.fixture(scope="session")
 def loggings():
@@ -266,4 +281,27 @@ def loggings():
 #     screenshot_data = self.driver.get_screenshot_as_png()
 #     with open(f"{name}.png", "wb") as file:
 #         file.write(screenshot_data)
+
+# def get_Excel_data_path_in_script():
+#         # return [
+#         #
+#         #     ["segun", "Ayadi", "Rapture", "segema@gmail", "Testing1", "techsupport@creditswitch.com", "Testing2."],
+#         #     ["taye", "taiwo", "tailoo", "taiwo@gmail", "Testing4", "ayadisegun02@gmail.com", "Credit2."],
+#         #
+#         # ]
+#         excelfile = "C:\\Users\\Segun\\PycharmProjects\\Android931\\testScripts\\ExcelFile.xlsx"
+#         sheetName = "details"
+#         workbook = openpyxl.load_workbook(excelfile)
+#         sheet = workbook[sheetName]
+#         totalrows = sheet.max_row
+#         totalcols = sheet.max_column
+#         mainList = []
+#
+#         for i in range(2, totalrows + 1):
+#             dataList = []
+#             for j in range(1, totalcols + 1):
+#                 data = sheet.cell(row=i, column=j).value
+#                 dataList.insert(j, data)
+#             mainList.insert(i, dataList)
+#         return mainList
 

@@ -67,9 +67,9 @@ class BaseUtils:
         mywait = WebDriverWait(self.driver, 10)
         mywait.until(EC.presence_of_element_located(locator))
 
-    def hover_over_element(self, element):
-        """Hover over an element"""
-        ActionChains(self.driver).move_to_element(element).perform()
+    # def hover_over_element(self, element):
+    #     """Hover over an element"""
+    #     ActionChains(self.driver).move_to_element(element).perform()
 
     def selectoption_bytext(self, locator, text):
         driver = self.driver
@@ -80,6 +80,10 @@ class BaseUtils:
         ele = self.driver.find_element(element)
         ActionChains(self.driver).move_to_element(ele).perform()
 
+    def double_click(self, element):
+        actions = ActionChains(self.driver)
+        actions.double_click(element).perform()
+
     def delete_cookie(self):
         self.driver.delete_all_cookies()
 
@@ -89,15 +93,8 @@ class BaseUtils:
     def delete_localstorage(self):
         self.driver.execute_script("window.localStorage.clear();")
 
-
-
-
-
-
-
-
-
-
+    def quit(self):
+        self.driver.quit()
 
 
 
@@ -106,4 +103,30 @@ class BaseUtils:
 
 class HomepageData:
     homepagetestData = [{"firstname": "segun", "email": "xyz@gmail.com", "password": "password123", "gender": "Male"}, {"firstname": "Ade", "email": "abc@gmail.com", "password": "passwordfemale", "gender": "Female"}]
+
+# Android Keycodes
+# 0 - 7
+# 1 - 8
+# 2 - 9
+# 3 - 10
+# 4 - 11
+# 5 - 12
+# 6 - 13
+# 7 - 14
+# 8 - 15
+# 9 -16
+# 10 -
+# 11 - 227
+# 12 - 228
+# Shift - 59
+# back - 4
+# home - 3
+# recent app - 187
+# driver.launch_app()  # Reopen the app
+# driver.background_app(5)  # Minimize the app for 5 seconds
+# power key 26
+# volume up 24
+# volume down 25
+#delete - 67
+#Enter - (66)
 
