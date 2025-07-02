@@ -46,11 +46,6 @@ def readconfig(section, key):
     except configparser.NoOptionError:
         # Provide helpful error message if key is missing
         raise configparser.NoOptionError(f"No option '{key}' found in section '{section}' in config file: {config_filepath}")
-# def readconfig(section, key):
-#     config_filepath = os.path.join(conftest_dir, 'config.ini')
-#     config = ConfigParser()
-#     config.read(config_filepath)
-#     return config.get(section, key)
 
 
 def pytest_addoption(parser):
@@ -125,25 +120,6 @@ class Utils:
         optns = Select(self.locator)
         optns.select_by_visible_text(text)
 
-    class loggersclass:
-        def get_logger(self):
-            loggerName = inspect.stack()[1][3]  # this script helps to ensure that the testcase name is printed in the log
-            # even when the logger is being called from a base class
-            logger = logging.getLogger(loggerName)
-            filehandler = logging.FileHandler('logsbase1.log')
-            formatter = logging.Formatter("%(asctime)s : %(levelname)s : %(name)s : %(message)s")
-            filehandler.setFormatter(formatter)
-            logger.addHandler(filehandler)
-            logger.setLevel(logging.ERROR)
-            # logger.debug("A debug statement written here will be printer")
-            # logger.info("information statenment will be printed")
-            # logger.warning("Warning messages")
-            # logger.error("A major error has happened")
-            # logger.critical("Critical issues")
-            logger.error("")
-            logger.critical("")
-            return logger
-
 
 def send_mail(sender_address, sender_pass, receiver_address, subject, mail_content, attach_file_name,
               ):
@@ -217,91 +193,131 @@ def pytest_runtest_makereport(item, call):
     setattr(item, "rep_" + rep.when, rep)
     return rep
 
-# @pytest.fixture(scope="session")
-def loggings():
-    logger = logging.getLogger(__name__)
-    filehandler = logging.FileHandler('e2elogfile.log')
-    formatter = logging.Formatter("%(asctime)s : %(levelname)s : %(name)s : %(message)s")
-    filehandler.setFormatter(formatter)
-    logger.addHandler(filehandler)
-    logger.setLevel(logging.INFO)
-    logger.debug("A debug statement written here will be printer")
-    logger.info("information statenment will be printed")
-    logger.warning("Warning messages")
-    logger.error("A major error has happened")
-    logger.critical("Critical issues")
+
+@pytest.hookimpl(tryfirst=True, hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    """
+    Extends the PyTest Plugin to take and embed screenshot in html report, whenever test fails.
+    :param item: The test item object
+    :param call: The call object from pytest (used to get outcome)
+    """
+    pytest_html = item.config.pluginmanager.getplugin('html')
+    outcome = yield
+    report = outcome.get_result()
+    extra = getattr(report, 'extra', [])
+
+    # Check if the test has failed or was skipped due to xfail
+    if report.when == 'call' or report.when == "setup":
+        xfail = hasattr(report, 'wasxfail')
+        if (report.skipped and xfail) or (report.failed and not xfail):
+            driver = None
+            try:
+                driver = item.funcargs.get('setup')
+            except Exception as e:
+                print(f"Could not retrieve driver from fixture: {e}")
+                driver = None
+
+            if driver:
+                # Define a directory for screenshots
+                screenshot_dir = "hook-screenshots"
+                os.makedirs(screenshot_dir, exist_ok=True) # Create directory if it doesn't exist
+
+                safe_nodeid = report.nodeid.replace("::", "__").replace("/", "_").replace("[", "_").replace("]", "_")
+                file_name = os.path.join(screenshot_dir, f"{safe_nodeid}.png")
+
+                try:
+                    driver.save_screenshot(file_name)
+                    print(f"Screenshot saved: {file_name}")
+
+                    if file_name:
+                        html = f'<div><img src="{file_name}" alt="screenshot" style="width:304px;height:228px;" ' \
+                               f'onclick="window.open(this.src)" align="right"/></div>'
+                        extra.append(pytest_html.extras.html(html))
+                except Exception as e:
+                    print(f"Failed to take screenshot: {e}")
+            else:
+                print("Driver not available for screenshot.")
+        report.extra = extra
 
 
-# class loggersclass:
-#     def get_logger(self):
-#         loggerName = inspect.stack()[1][3] # this script helps to ensure that the testcase name is printed in the log
-#         # even when the logger is being called from a base class
-#         logger = logging.getLogger(loggerName)
-#         filehandler = logging.FileHandler('logsbase1.log')
-#         formatter = logging.Formatter("%(asctime)s : %(levelname)s : %(name)s : %(message)s")
-#         filehandler.setFormatter(formatter)
-#         logger.addHandler(filehandler)
-#         logger.setLevel(logging.ERROR)
-#         # logger.debug("A debug statement written here will be printer")
-#         # logger.info("information statenment will be printed")
-#         # logger.warning("Warning messages")
-#         # logger.error("A major error has happened")
-#         # logger.critical("Critical issues")
-#         logger.error("")
-#         logger.critical("")
-#         return logger
+@pytest.fixture(scope="module")
+def get_logger():
+    """
+    Pytest fixture to provide a configured logger instance to tests.
+    The logger name will be the name of the test file/module that requests it.
+    """
+    logs_dir = "logs"
+    os.makedirs(logs_dir, exist_ok=True)
+
+    calling_module = inspect.getmodule(inspect.stack()[1][3])
+    logger_name = calling_module.__name__ if calling_module else "pytest_logger"
+    logger = logging.getLogger(logger_name)
+
+    if not logger.handlers:
+        log_file_path = os.path.join(logs_dir, f"{logger_name}.log")
+        file_handler = logging.FileHandler(log_file_path)
+        formatter = logging.Formatter("%(asctime)s : %(levelname)s : %(name)s : %(message)s")
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+        logger.setLevel(logging.INFO)  # info, debug, warning, error, critical
+        # to print logs to console (optional)
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(formatter)
+        logger.addHandler(console_handler)
+
+    yield logger
 
 
-# @pytest.mark.hookwrapper
-# to automatically generate a screenshot when a test fails, we need to write a one-time script as follows
-# def pytest_runtest_makereport(item):
-#     """
-#         Extends the PyTest Plugin to take and embed screenshot in html report, whenever test fails.
-#         :param item:
-#         """
-#     pytest_html = item.config.pluginmanager.getplugin('html')
-#     outcome = yield
-#     report = outcome.get_result()
-#     extra = getattr(report, 'extra', [])
-#
-#     if report.when == 'call' or report.when == "setup":
-#         xfail = hasattr(report, 'wasxfail')
-#         if (report.skipped and xfail) or (report.failed and not xfail):
-#             file_name = report.nodeid.replace("::", "_") + ".png"
-#             _capture_screenshot(file_name)
-#             if file_name:
-#                 html = '<div><img src="%s" alt="screenshot" style="width:304px;height:228px;" ' \
-#                        'onclick="window.open(this.src)" align="right"/></div>' % file_name
-#                 extra.append(pytest_html.extras.html(html))
-#         report.extra = extra
-#
-#
-# def _capture_screenshot(self, setup, name):
-#     driver = setup
-#     screenshot_data = self.driver.get_screenshot_as_png()
-#     with open(f"{name}.png", "wb") as file:
-#         file.write(screenshot_data)
+@pytest.hookimpl(tryfirst=True, hookwrapper=True)  # Correct decorator placement
+def pytest_runtest_makereport(item, call):  # Added 'call' argument for the hookwrapper
+    """
+    Extends the PyTest Plugin to take and embed screenshot in html report, whenever test fails.
+    :param item: The test item object
+    :param call: The call object from pytest (used to get outcome)
+    """
+    pytest_html = item.config.pluginmanager.getplugin('html')
+    outcome = yield # Capture the outcome of the test (pass/fail/skip)
+    report = outcome.get_result()
+    extra = getattr(report, 'extra', [])
 
-# def get_Excel_data_path_in_script():
-#         # return [
-#         #
-#         #     ["segun", "Ayadi", "Rapture", "segema@gmail", "Testing1", "techsupport@creditswitch.com", "Testing2."],
-#         #     ["taye", "taiwo", "tailoo", "taiwo@gmail", "Testing4", "ayadisegun02@gmail.com", "Credit2."],
-#         #
-#         # ]
-#         excelfile = "C:\\Users\\Segun\\PycharmProjects\\Android931\\testScripts\\ExcelFile.xlsx"
-#         sheetName = "details"
-#         workbook = openpyxl.load_workbook(excelfile)
-#         sheet = workbook[sheetName]
-#         totalrows = sheet.max_row
-#         totalcols = sheet.max_column
-#         mainList = []
-#
-#         for i in range(2, totalrows + 1):
-#             dataList = []
-#             for j in range(1, totalcols + 1):
-#                 data = sheet.cell(row=i, column=j).value
-#                 dataList.insert(j, data)
-#             mainList.insert(i, dataList)
-#         return mainList
+    # Check if the test has failed or was skipped due to xfail
+    if report.when == 'call' or report.when == "setup": # Check if the failure happened during setup or call phase
+        xfail = hasattr(report, 'wasxfail')
+        if (report.skipped and xfail) or (report.failed and not xfail):
+            # Attempt to get the driver from the test item's fixtures
+            # This is the crucial part to access the driver instance that was used by the test
+            driver = None
+            try:
+                # Access the driver from the 'setup' fixture.
+                # 'item.funcargs' contains the arguments passed to the test function,
+                # including fixtures.
+                driver = item.funcargs.get('setup')
+            except Exception as e:
+                print(f"Could not retrieve driver from fixture: {e}")
+                driver = None
+
+            if driver:
+                # Define a directory for screenshots
+                screenshot_dir = "hook-screenshots"
+                os.makedirs(screenshot_dir, exist_ok=True)  # Create directory if it doesn't exist
+                # Create a unique filename for the screenshot
+                # Replace invalid characters for filenames
+                safe_nodeid = report.nodeid.replace("::", "__").replace("/", "_").replace("[", "_").replace("]", "_")
+                file_name = os.path.join(screenshot_dir, f"{safe_nodeid}.png")
+
+                try:
+                    driver.save_screenshot(file_name)  # Use driver.save_screenshot directly
+                    print(f"Screenshot saved: {file_name}")
+
+                    # Add the screenshot to the HTML report
+                    if file_name:
+                        # Construct the HTML for embedding the image in the report
+                        html = f'<div><img src="{file_name}" alt="screenshot" style="width:304px;height:228px;" ' \
+                               f'onclick="window.open(this.src)" align="right"/></div>'
+                        extra.append(pytest_html.extras.html(html))
+                except Exception as e:
+                    print(f"Failed to take screenshot: {e}")
+            else:
+                print("Driver not available for screenshot.")
+        report.extra = extra
 

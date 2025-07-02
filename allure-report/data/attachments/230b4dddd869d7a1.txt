@@ -1,0 +1,2 @@
+Running tests on browser: chrome
+Quitting chrome browser.

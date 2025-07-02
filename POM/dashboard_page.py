@@ -13,9 +13,25 @@ class Dashboard:
     changepasswrd = (By.XPATH, readconfig("dashboard_page", "change_password_menu"))
     sidebar2 = (By.XPATH, readconfig("dashboard_page", "side_bar2"))
     logout = (By.XPATH, readconfig("dashboard_page", "logout"))
+    viewbalance = (By.XPATH, readconfig("dashboard_page", "view_balance"))
+    airtimedata = (By.XPATH, readconfig("dashboard_page", "airtime_data"))
+    serv_report = (By.XPATH, readconfig("dashboard_page", "service_report"))
 
     def side_bar(self):
         return self.driver.find_element(*Dashboard.sidebar)
+
+    def servicereport_menu(self):
+        return self.driver.find_element(*Dashboard.serv_report)
+
+    def airtime_data_menu(self):
+        self.driver.find_element(*Dashboard.airtimedata).click()
+        from POM.airtimedata_page import AirtimeDataPage
+        airtimeData = AirtimeDataPage(self.driver)
+        return airtimeData
+
+    def view_balance(self):
+        hi = self.driver.find_element(*Dashboard.viewbalance)
+        return hi
 
     def side_bar2(self):
         return self.driver.find_element(*Dashboard.sidebar2)
